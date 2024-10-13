@@ -1,44 +1,14 @@
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, Trainer, TrainingArguments
 from transformers import TrainerCallback
-from mydataset import TrainDataset
+from mydataset import TrainDataset, EvalDataset
+import argparse
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 from torch.utils.data import Dataset
 import pandas as pd
 import torch
 import random
 import numpy as np
-
-# Custom Dataset
-
-
-model_name = 'gpt2'
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-tokenizer.pad_token = tokenizer.eos_token
-
-dataset = TrainDataset('data/data_3_0.csv', tokenizer)
-dataset2 = TrainDataset('data/data_3_0.csv', tokenizer)
-#for item in dataset:
-#    for key, value in item.items():
-#        print(f"{key}: {value}")  # Adjust processing logic as necessary
-
-model = GPT2LMHeadModel.from_pretrained(model_name)
-
-# Load dataset
-
-# Define training arguments
-training_args = TrainingArguments(
-    output_dir='./results',
-    num_train_epochs=5,
-    per_device_train_batch_size=32,
-    save_steps=50,
-    save_total_limit=3,
-    logging_steps=10,
-    learning_rate=5e-5,
-    weight_decay=0.01
-)
-
-# Initialize Trainer
 
 class StringOutputEvaluator(TrainerCallback):
     def __init__(self, eval_dataset, tokenizer):
@@ -48,27 +18,48 @@ class StringOutputEvaluator(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
         model = kwargs.get('model')
         device = args.device
-        #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Example: Just evaluating the first example in the eval dataset
-        input_ids = self.eval_dataset[0]['input_ids'].unsqueeze(0).to(device)
-        attention_mask = self.eval_dataset[0]['input_ids'].unsqueeze(0).to(device)
+        # TODO
 
-        with torch.no_grad():
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids)
-            predicted_ids = outputs.logits.argmax(dim=-1)
-            #predicted_max = outputs.logits.max(dim=2)
+def main():
+    parser = argparse.ArgumentParser(description='Train a GPT-2 model.')
+    parser.add_argument('--model_name', type=str, default='gpt2',  help='Pre-trained model name or path')
+    parser.add_argument('--dataset_train', type=str, default='/Users/markchang/code/RLSTaR/data/data_4_0.csv',  help='Path to the training dataset')
+    parser.add_argument('--dataset_eval', type=str, default='/Users/markchang/code/RLSTaR/data/data_4_1.csv',  help='Path to the evaluation dataset')
+    parser.add_argument('--output_dir', type=str, default='/Users/markchang/code/RLSTaR/results',  help='Path to output directory')
 
-            print(f"input:{tokenizer.decode(input_ids[0], skip_special_tokens=True)}")
-            print(f"predicted:{tokenizer.decode(predicted_ids[0], skip_special_tokens=True)}")
-            print(f"predicted_max:{outputs.logits.sum()}")
+    args = parser.parse_args()
 
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=dataset,
-    tokenizer=tokenizer,
-    callbacks=[StringOutputEvaluator(dataset2, tokenizer)]
-)
+    tokenizer = GPT2Tokenizer.from_pretrained(args.model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    model = GPT2LMHeadModel.from_pretrained(args.model_name)
 
-# Train the model
-trainer.train()
+    dataset_train = TrainDataset(args.dataset_train, tokenizer)
+    dataset_eval = EvalDataset(args.dataset_eval, tokenizer)
+
+    # Define training arguments
+    training_args = TrainingArguments(
+        output_dir=args.output_dir,
+        num_train_epochs=5,
+        per_device_train_batch_size=32,
+        save_steps=50,
+        save_total_limit=3,
+        logging_steps=10,
+        learning_rate=5e-5,
+        weight_decay=0.01
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset_train,
+        tokenizer=tokenizer,
+        callbacks=[StringOutputEvaluator(dataset_eval, tokenizer)]
+    )
+
+    # Train the model
+    trainer.train()
+# Initialize Trainer
+
+
+if __name__ == '__main__':
+    main()

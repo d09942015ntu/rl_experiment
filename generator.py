@@ -4,7 +4,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 # Load pre-trained model and tokenizer
 model_name = 'gpt2'  # You can choose 'gpt2-medium', 'gpt2-large', 'gpt2-xl' if needed
 
-checkpoint_path = "/Users/markchang/code/RLSTaR/checkpoints/checkpoint-250"
+checkpoint_path = "/Users/markchang/code/RLSTaR/checkpoints/checkpoint-1000"
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = GPT2LMHeadModel.from_pretrained(checkpoint_path)
 
@@ -18,7 +18,12 @@ def generate_conversation(prompt, max_length=100, num_return_sequences=1):
     # tensor([[31373,   703,   389,   345,    30]], device='mps:0')
     # tensor([[31373,   703,   389,   345,    30]])
     print(input_ids)
+    #tensor([[4304, 7600, 5125, 2124, 1875]])
 
+    #tensor([[4304, 7600, 5125, 2124, 1875, 220],
+    #        [4761, 2808, 10190, 2124, 1875, 220]])
+    #tensor([[4304, 7600, 5125, 2124, 1875, 220],
+    #        [4761, 2808, 10190, 2124, 1875, 220]])
     # Generate text continuation
     with torch.no_grad():
         output = model.generate(

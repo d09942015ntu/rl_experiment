@@ -11,8 +11,8 @@ class TrainDataset(Dataset):
     def __init__(self, file_path, tokenizer):
         self.data = pd.read_csv(file_path)
         self.tokenizer = tokenizer
-        self.length = int(os.path.basename(file_path).replace(".csv","").split("_")[-2])
-        self.max_length = ((self.length+2)*2+3)
+        self.n = int(os.path.basename(file_path).replace(".csv","").split("_")[-2])
+        self.max_length = ((self.n+1)*2+3)
         self.rng = np.random.RandomState(0)
 
     def __len__(self):
@@ -21,12 +21,12 @@ class TrainDataset(Dataset):
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
         # Randomly choose a starting point
-        start_index = self.rng.randint(0, self.length+1)
+        start_index = self.rng.randint(0, self.n)
         # Match s_i as input and s_{i+1} as the target
         s1 = row[f's{start_index}']
         s2 = row[f's{start_index + 1}']
 
-        input_text = s1 + ' > ' + s2 + ' < '
+        input_text = s1 + ' > ' + s2 + self.tokenizer.eos_token
         # Encode sentences with the format [s1, s2]
         encoding = self.tokenizer(input_text, truncation=True, max_length=self.max_length, padding='max_length')
         s1_encoded = self.tokenizer.encode(s1)
@@ -44,10 +44,11 @@ class TrainDataset(Dataset):
 
 
 class EvalDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, tokenizer):
         self.data = pd.read_csv(file_path)
-        self.length = int(os.path.basename(file_path).replace(".csv","").split("_")[-2])
-        self.max_length = ((self.length+2)*2+3)
+        self.tokenizer = tokenizer
+        self.n = int(os.path.basename(file_path).replace(".csv","").split("_")[-2])
+        self.max_length = ((self.n+1)*2+3)
         self.rng = np.random.RandomState(0)
 
     def __len__(self):
@@ -55,9 +56,9 @@ class EvalDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
-        start_index = self.rng.randint(0, self.length+1)
+        start_index = 0
         input_text = row[f's{start_index}']
-        target_text = row[f's{self.length}']
+        target_text = row[f's{self.n}']
 
         return {
             'input_text': input_text,
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     tokenizer = GPT2Tokenizer.from_pretrained(model_name)
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     tokenizer.pad_token = tokenizer.eos_token
-    dataset = TrainDataset('data/data_3_0.csv', tokenizer)
+    dataset = TrainDataset('data/data_4_0.csv', tokenizer)
     for item in dataset:
         for key, value in item.items():
             if key == 'input_ids': #or key == 'labels':
